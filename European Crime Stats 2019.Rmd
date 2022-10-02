@@ -1,0 +1,236 @@
+---
+title: "European Crime Statistics 2019"
+author: "Michael Whelan"
+date: "01/10/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Task 1: Manipulation
+
+
+
+### 1. Load the dataset EurostatCrime2019.csv. Notice that the first column of the csv file contains the names of the countries that must be read as row names [Hint: Load in the file using the function read.csv]. [1 marks]
+
+```{r}
+library(dplyr) #Calling libraries to perform different functions
+library(tidyr)
+
+```
+
+```{r}
+#Reading the csv file into R and turning the countries into row names so it is not treated as a variable
+df <- read.csv("EurostatCrime2019.csv", header = T, row.names = 1) 
+print(head(df)) #Getting an understanding for the data
+
+```
+
+To explain the data, take Albania's Intentional Homicides which is `2.03`. This means for every `100,000` people there are `2.03` intentional homicides.
+
+***
+
+### 2. What is the size (number of rows and columns) and the structure of this dataset? [0.5 marks]
+
+```{r}
+str(df) #Analysing the structure of the data
+
+```
+This data frame is a 2-dimensional structure made up of rows and columns. There are 13 variables (Columns) and 41 observations (Rows). 
+Each object in the table is a `num` which means they are numeric. This means they can be real numbers, integers, floating point numbers etc. 
+
+
+
+### 3. Produce appropriate commands to do the following actions:
+
+
+  + For most countries sexual violence figures are the sum of rape and sexual assault. Remove the columns Rape and Sexual.assault. [0.5 marks]
+
+
+```{r}
+colnames(df) #Checking what numbers the columns are
+df <- df[-c(6,7)] #Taking out column 6,7 i.e Rape and Sexual.assault
+colnames(df) #Checking Answer
+```
+
+
+  + For some countries Theft includes also burglary, and theft of motorised land vehicle, in others they are recorded separately. In order to compare the different countries, remove the columns involving theft and burglary:
+
+
+
+```{r}
+colnames(df) #Checking what numbers the columns are
+df <- df[-c(7:10)] #Removing columns 7-10 i.e any columns to do with theft and burglary
+colnames(df) #Checking Answer
+
+```
+
+
+
+  + Add a column containing the overall record of offences for each country (per hundred thousand inhabitants)? [1 marks]
+
+
+```{r}
+df$"Overall Record of Offences" <- rowSums(df, na.rm = T) #Summing the rows together in a new column called Overall Record of Offences
+head(df) #Checking Answer
+
+#Double Checking Answer e.g Albania
+df[1,] #Albania
+#Adding all of Albania's rows = 90 which is the first entry of Overall Record of offences
+c(2.03 + 3.25 + 5.52 + 0.14 + 5.38 + 3.42 + 70.26)
+```
+
+***
+
+
+### 4. Work with the dataset you just created, and list the countries that contain any missing data. [1.5 marks]
+
+```{r}
+#Making a new variable dfna that is looking for any rows with NA. If you add a row with even 1 NA in it the whole thing will be NA. This takes them countries with NA's 
+
+dfna <- df[rowSums(is.na(df)) > 0,] 
+NA_Countries <- c(rownames(dfna)) #Containing the rownames of dfna in a new variable
+NA_Countries
+
+```
+
+
+### 5. Remove the countries with missing data from the dataframe. [1 marks]
+
+```{r}
+df<-df[complete.cases(df),]  #Returning a vector that has no missing vales
+head(df) #Checking answer
+```
+
+
+### 6. How many observations and variables are in this new dataframe? [0.5 marks]
+
+```{r}
+str(df) #Checking structire of mew data frame
+```
+
+Now there are 22 Observations (Rows) and 8 Variables (Columns) in the data frame now.
+
+
+
+## Task 2: Analysis
+
+
+
+### 1. According to these data what were the 3 most common crimes in Ireland in 2019? [2 marks]
+
+```{r}
+ire <- unlist(df[10,]) #Gives me back numbers I can manipulate i.e atomic components
+tail(sort(ire), 4) #4 because Overall Record of offences dosent count and I can sort now 
+```
+
+The 3 most common crimes in Ireland in 2019 were:
+
+  + Unlawful Acts Involving Controlled Drugs or Precursors
+  + Assault
+  + Sexual Assault
+
+
+
+### 2. What proportion of the overall crimes was due to Assault in Ireland in 2019? [1.5 marks]
+
+```{r}
+print(ire) #Analysing the column indexes
+ire[3] / ire[8] #Dividing column 3 and 8 in ire
+
+```
+
+The proportion of overall crimes due to Assault in Ireland was ~ 16%
+
+
+
+### 3.Which country had the highest record of kidnapping in 2019 (per hundred thousand inhabitants)? [1 marks]
+
+```{r}
+max(df$Kidnapping) #Finding the biggest number in the column Kidnapping in the data set df
+which(df$Kidnapping == 7.17) #Finding which row number Kidnapping = 7.17
+rownames(df[15,]) #Displaying row 15 and no columns
+
+```
+
+Luxembourg had the highest record of kidnapping in 2019 (per hundred thousand inhabitants) at 7.17
+
+
+
+### 4. Which country had the lowest overall record of offences in 2019 (per hundred thousand inhabitants)? [1 marks]
+
+```{r}
+min(df$`Overall Record of Offences`) #Finding the smallest number in the column Overall Recird of Offences in the data set df
+which(df$`Overall Record of Offences` == 70.06) #Finding which row Overall Record of Offences = 70.06
+rownames(df[18,0]) #Displaying the row with no columns
+
+```
+Romania had the lowest overall offences in 2019 (per hundred thousand inhabitants) at 70.06
+
+
+
+### 5. Create a plot displaying the relationship between robbery and unlawful acts involving controlled drugs or precursors. Make the plot look “nice” i.e. change axis labels etc. [2 marks]
+
+```{r}
+plot(x = df$Unlawful.acts.involving.controlled.drugs.or.precursors, y = df$Robbery, xlab = "Unlawful Acts involving controlled drugs or precursors", ylab = "Robbery", col.lab = "Purple", pch = 16, cex = 1, col = "blue", type = "p", main = "Relationship between Robbery & Unlawful Acts") #Plotting the relationship between Robbery and Unlawful Acts ... and designing the graph
+```
+
+## Task 3: Creativity
+
+### Do something interesting with these data (either the original dataset or the modified one)! Create a nice plot which shows something we have not discovered above already and outline your findings.
+
+I will start this analysis by retrieving the original csv file. During the previous exercises rather than renaming `df` I kept overwriting it so I am starting again with the original csv file.
+
+```{r}
+df2 <- read.csv("EStatCrime2019_V2.csv", header = T, row.names = 1) #Reading the same csv file but a different copy so this analysis does not affect my previous work above
+head(df2) #Analysing the data
+
+```
+I thought to look into which has a higher crime rate in Europe the East or the West. If we divide Europe into two from the space between Sweden and Finland down to the gap between Italy and Greece.
+
+```{r figurename, echo=FALSE, out.width = '90%'}
+knitr::include_graphics("/Users/Michael/Desktop/Map.png") #Putting in the picture of the map from my desktop
+```
+
+
+Let's divide our data set into 2 parts East and West
+
+
+```{r}
+df2$"Overall Record of Offences" <- rowSums(df2, na.rm = T) #Adding up the row names and putting them in a new column like I did above
+
+df2$'Location' <- c('E','W','W','E','W','W','E', 'W','W','W','E','E','W','W','E','E','W','W','W','E','E','W','E','W','W','E','W','E','W','W','E','W','E','W','E','E','E','W','W','W','E') #Assigning which countries are Eastern and Western in a new column called Location. If they are left of the line they are West and right of the line they are East
+
+
+df2 %>% select(Location) #Analysing If I input the location values correctly
+
+E <- subset(df2$`Overall Record of Offences`, df2$Location == 'E') #Taking out the eastern countries
+sum(E) #Summing their overall record of offences
+W <- subset(df2$`Overall Record of Offences`, df2$Location == 'W') #Taking out the western countries
+sum(W) #Summing their overall record of offences
+
+bar <- barplot(c("East" = sum(E), "West" = sum(W)), space = 0.5, density = 20, angle = 45, col = "blue", border = 1, main = "Crimes in East V West Europe", xlab = "Location", ylab = 'Rate per 100,000') #Creating a barplot of the 2 sums 
+
+
+```
+
+
+According to the barplot, a lot more crimes happen in the West. This information may not be very accurate there are a few factors to take into account. 
+
+The first being there is more countries in the West than East therefore more people. In this data set roughly `r 18/41` of countries are Eastern meaning `r (41-18)/41 ` are Western, significantly more. 
+
+Another factor could be how I divided the map and I feel this is the biggest factor. It could be inaccurate for example, Poland was split in the middle so it could have been either East or West depending on who you ask. I took it as East because the capital city Warsaw was more Eastern. It was difficult to decide where this line went because I tried to divide as many countries in 2 as possible while keeping the line as vertical as possible too.
+
+A possible factor could be what countries identify as Eastern, maybe it is not a matter of land mass but public opinion. Maybe some countries feel half of them are Eastern and half are Western which I did not take into account here i.e each country was either fully Western or fully Eastern
+
+There are also some countries that are not in this data set such as Austria, Andorra and Ukraine which could have an affect too. 
+
+
+
+
+
+
