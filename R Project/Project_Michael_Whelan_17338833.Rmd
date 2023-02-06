@@ -1,0 +1,1039 @@
+---
+pdf_document: default
+author: "Michael Whelan 17338833"
+output:
+  html_document: default
+  pdf_document: default
+title: "Final Project"
+---
+
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+
+
+
+Packages I will be using throughout the project
+
+```{r, results = "hide"}
+library(tidyverse)
+```
+
+```{r, results = "hide"}
+library(ggplot2)
+
+```
+
+
+As you can see the `tidyverse` library contains other libraries such as `tibble`, `ggplot` and `dplyr` which I will be using throughout.
+
+I will introduce more as I go on.
+
+This project is made up of 3 components:
+  
+- Analysis 
+- R Packages
+- Functions/Programming
+
+## Results {.tabset}
+
+___
+
+
+### Analysis
+
+<br></br>
+
+#### Context: 
+The Spotify dataset provides insight into users data about which songs people listen to, and not just the popularity of tracks, but also features of the tracks they have in their library is recorded in their database.
+
+For further reading: https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-01-21/readme.md
+
+```{r}
+
+#reading my csv file from local machine
+df <- read.csv("spotify_songs.csv", header = T) 
+
+#A glimpse at the dataset
+df[1:5,1:19] 
+
+
+
+```
+<br></br>
+
+Now we will look at the structure of the data set. We will see it is a data frame with 32,828 observations and 23 variables
+
+```{r}
+str(df)
+```
+
+	
+<br></br>
+
+#### Attributes:
+I will explain the variables for this dataset to give some context
+
+- **track_id**: Song ID
+
+- **track_name**: Song Namw
+
+- **track_artist**: Song Artist
+
+- **track_popularity**: Song popularity (rating 0-100)
+
+- **track_album_id**: Album ID
+
+- **track_album_name**: Song album name
+
+- **track_album_name**: Song album name
+
+- **track_album_release_date**: Date the album was released
+
+- **playlist_name**: Name of playlist
+
+- **playlist_id**: Playlist ID
+
+- **playlist_genre**: Playlist genre
+
+- **playlist_subgenre**: Playlist subgenre
+
+- **danceability**: Danceability describes how suitable a track is for dancing. 0.0 being least danceable 1.0 being most danceable
+
+- **energy**: Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. 
+
+- **key**: The estimated overall key of the track. 
+
+- **loudness**: The overall loudness of a track in decibels (dB). Loudness is the quality of a sound that is the primary psychological correlate of physical strength (amplitude). Values typical range between -60 and 0 db. 
+		   
+- **mode**: Mode indicates the modality (major or minor) of a track, the type of scale from which its melodic content is derived. Major is represented by 1 and minor is 0.
+
+- **speechiness**: Speechiness detects the presence of spoken words in a track. The more exclusively speech-like the recording (e.g. talk show, audio book, poetry), the closer to 1.0 the attribute value. Values above 0.66 describe tracks that are probably made entirely of spoken words. Values between 0.33 and 0.66 describe tracks that may contain both music and speech, either in sections or layered, including such cases as rap music. Values below 0.33 most likely represent music and other non-speech-like tracks. 
+
+- **acousticness**: A confidence measure from 0.0 to 1.0 of whether the track is acoustic. 1.0 represents high confidence the track is acoustic.
+	
+- **instrumentalness**: Predicts whether a track contains no vocals.The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content. Values above 0.5 are intended to represent instrumental tracks, but confidence is higher as the value approaches 1.0. The distribution of values for this feature look like this:
+	
+- **liveness**: Detects the presence of an audience in the recording. Higher liveness values represent an increased probability that the track was performed live. A value above 0.8 provides strong likelihood that the track is live.
+	
+- **valence**: A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry).
+	
+- **tempo**: The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the speed or pace of a given piece and derives directly from the average beat duration. 
+	
+- **duration_ms**: 	The duration of the track in milliseconds.
+	
+
+<br></br>
+		
+Some questions I asked myself before this:
+
+- What kind of distributions are the musical variables?
+- Who is the most popular artist?
+- Is there more positvity in major modes?
+- What year was the most popular between 2010 - 2020?
+- Can Post Malone be considered a rapper under these variables?
+
+
+<br></br>
+
+#### Data Cleaning: 
+
+Before I answer some of these questions the data needs to be cleaned. I will lay out each variable that I will be changing anything I don't mention I have left as is.
+
+```{r}
+#Changing my dataset into a tibble for easier manipulation and make full use of dplyr and ggplots
+
+df <- as_tibble(df)
+```
+
+<br></br>
+  
+#### id
+  
+The original data set never had an `id` variable so I decided to add one in to give a number to each row
+```{r}
+# Create a column with numbers 1:32833 (no. of rows) 
+# and append it to the data set before the track column
+# which is originally the first column
+
+
+df %>%
+  mutate(id = c(1:32833),.before = track_id) -> df
+
+#Taking the first 4 rows and 3 columns to check if id was appended
+df[1:4,1:3]
+```
+<br></br>
+
+#### track_id
+
+We won't need the `track_id` for each track because we now have the `id` variable so we will drop this variable
+```{r, error = T}
+#selecting the data frame and minusing the variable uri
+df <- select(df,-track_id)
+
+```
+<br></br>
+
+#### track_album_id
+
+Same as above we won't need `track_album_id`
+
+```{r, error = T}
+#selecting the data frame and minusing the variable uri
+df <- select(df,-track_album_id)
+
+
+```
+<br></br>
+
+#### track_album_release year
+
+The release year is in YYYY-MM-DD. To make the analysis easier I will turn this variable into YYYY
+
+```{r, results = "hide"}
+#Set of functions to deal with dates in an easier way
+library(lubridate) 
+
+```
+
+```{r}
+
+# use a for loop to go through each value
+for (i in 1:length(df$track_album_release_date)){
+  # check if the value is a date in the DD/MM/YYYY format
+  if (grepl("^[0-9]{4}$", df$track_album_release_date[i])) {
+  #Adding a 01-01 to release years that just have YYYY so I can use the lubridate functions without getting NA's
+    df$track_album_release_date[i] <- paste("01","01",df$track_album_release_date[i], sep = "/")
+  }
+}
+
+
+# Convert the dates to Date objects
+dates <- as.Date(df$track_album_release_date, format = "%d/%m/%Y")
+
+# Extract the year from the Date objects
+df$track_album_release_date <- format(dates, "%Y")
+
+#Turning years into factor variables
+df$track_album_release_date <- factor(df$track_album_release_date)
+
+#Analysing structure
+str(df$track_album_release_date)
+
+```
+<br></br>
+
+#### playlist_id
+```{r, error = T}
+#selecting the data frame and minusing the variable uri
+df <- select(df,-playlist_id)
+
+
+```
+<br></br>
+
+#### mode
+
+mode is a categorical variable so we will let `0 = Minor` and `1 = Major` how ever when we look at the structure again R will set `0` to `1` and `1` to `2` with `1 = Minor` and `2 = Major`
+
+```{r}
+#Setting the variable mode as a factor with categories major and minor
+df$mode <- factor(df$mode, labels = c("Minor", "Major")) 
+str(df$mode)
+```
+<br></br>
+
+#### playlist_genre
+
+`playlist_genre` can be categorised into factors which I will do
+
+```{r}
+
+#Used to eliminate or delete the duplicate values or the rows present in the vector
+unique(df$playlist_genre)
+#Categorising playlist_genre variable
+df$playlist_genre <- factor(df$playlist_genre, labels = c("pop","rap","rock","latin","r&b","edm"))
+str(df$playlist_genre)
+
+```
+<br></br>
+
+#### playlist_subgenre
+
+`playlist_subgenre` can be categorised into factors which I will do
+```{r}
+unique(df$playlist_subgenre)
+#Categorising playlist_subgenre variable
+df$playlist_subgenre <- factor(df$playlist_subgenre)
+str(df$playlist_genre)
+
+```
+<br></br>
+
+#### key
+
+I will remove key as I am not educated enough in music do perform any analysis in terms of keys and scales etc...
+
+```{r}
+#minusing the key variable
+df <- select(df,-key)
+
+```
+<br></br>
+
+#### tempo
+
+We will change the tempo name to BPM as it is measured in 'Beats per Minute' (BPM)
+
+```{r}
+df %>%
+  #Appending the name 'BPM' to the variable 'tempo'
+  rename("BPM" = "tempo") -> df 
+
+```
+<br></br>
+
+#### duration_ms
+
+The song duration is in milliseconds we will change this to minutes and seconds, it is easier to read and that is the usual convention in music apps. We will also change the variable name from `duration_ms` to `duration(secs)`
+
+```{r, results = "hide"}
+
+#Convert input in any one of character, integer, numeric, factor, or ordered type into 'POSIXct' (or 'Date') objects
+library(anytime)
+
+# as. POSIXct stores both a date and time with an associated time zone. The default time zone selected, is the time zone that my computer is set to
+as.POSIXct(Sys.Date()) + df$duration_ms/ 1000 
+df$duration_ms  <- format( as.POSIXct(Sys.Date()) + 
+                            df$`duration_ms`  /1000,"%M:%S")
+
+#Changing the name of the column
+df <- rename(df, "duration(secs)" = "duration_ms") 
+
+ 
+```
+
+The times are now in MM:SS
+```{r}
+#Glimpse of variable in MM:SS and mod 60
+head(df$`duration(secs)`,10)
+```
+
+Now lets look at our data again 
+
+```{r}
+str(df)
+
+```
+
+We now have a tibble with 32,828 observations and this time only 20 variables 
+
+We can graph this structure too 
+
+```{r, results = "hide"}
+#The visdat package provides visualisations of an entire dataframe at once
+library(visdat)
+
+```
+
+```{r}
+visdat::vis_dat(df,sort_type = FALSE)
+```
+
+<br></br>
+
+#### NA Values 
+
+It would make sense to remove rows with any `NA` values in them
+
+```{r}
+df <- print(df[complete.cases(df), ] )
+
+```
+
+<br></br>
+
+#### Data Exploration: 
+
+A useful thing to look at which we didn't talk too much about in the course was memory consumption. This is quite a big data set so memory consumption would be something worth keeping an eye on
+
+<br></br>
+
+```{r}
+#automate data exploration and treatment
+library(DataExplorer)
+plot_intro(df)
+
+```
+
+The total memory usage is 8Mb with the rows taking up the most amount of memory.
+
+This can also show if you have any missing data. If we did completed rows would not be 100% and discrete and continuous columns both add to give 100%. Missing columns and observations is also 0%
+
+<br></br>
+  
+Now we will look at answering some of my questions previously.
+
+
+<br></br>
+  
+I wanted to find mean of song duration
+
+```{r}
+#Converting times into seconds for easier calculation
+toSeconds <- function(x){
+  
+  #stop if the input is not a string in H:M:S
+  if (!is.character(x)) stop("x must be a character string of the form H:M:S")
+  #If x is <= 0 we return the input as you can have negative or 0 time
+  if (length(x)<=0)return(x)
+  
+  #The function knows that if you put 1 digit in it is seconds
+  # 2 digits is minutes:seconds
+  # 3 digits is houra:minutes:seconds
+  unlist(lapply(x, function(i){
+    i <- as.numeric(strsplit(i,':',fixed=TRUE)[[1]]) 
+    
+    if (length(i) == 3) #Hours
+      i[1]*3600 + i[2]*60 + i[3]
+    
+    else if (length(i) == 2) #Mins
+      i[1]*60 + i[2]
+    
+    else if (length(i) == 1) #Seconds
+      i[1]
+  }  
+  )  
+  )  
+} 
+
+
+#dividing and rounding seconds by 60 to get minutes and seconds
+mean(toSeconds(df$`duration(secs)`)) / 60
+
+```
+
+
+As we can see the mean for song duration is 3 minutes and 76 seconds. We can run this in a function called `timecon` which will convert the duration to minutes and seconds if the seconds are greater than 60 
+
+```{r}
+
+timecon <- function(x){
+  
+  # seperating the whole number and decimal to get the decimal part
+  l <- x - floor(x) 
+  
+  #If the decimal part is <= 60 we return the number as is because the seconds are still between 1 and 60 so no conversion needed
+  if (l <= 0.6){return(x)}
+  
+  #Otherwise we multiply the decimal part by 100 and divide by 60 adding on the while number
+  else {(round((x - floor(x)) * 100,0) / 60) + floor(x)}
+  
+}
+
+
+round(timecon(3.76),2)
+
+```
+The actual mean is 4 minutes and 27 seconds.
+
+<br></br>
+
+I wanted to look at some information about the dataset's genres
+
+```{r, results = "hide"}
+
+df %>%
+  count(genre = playlist_genre) -> gencount
+
+gencount %>%
+   arrange(desc(n), gencount) %>%
+    rename(count = n) -> gencount
+```
+
+```{r}
+knitr::kable(gencount, col.names = gsub("", "", names(gencount)))
+```
+Unsurprisingly, pop has the most songs in the dataset followed by r&b, rock, latin, rap and finally edm. How about subgenres?
+
+Let's pick the top 10
+
+```{r, results = "hide"}
+
+df %>%
+  count(playlist_subgenre) -> subcount
+
+subcount %>%
+   arrange(desc(n), subcount) %>%
+  rename(count = n) -> subcount
+
+
+```
+
+```{r}
+knitr::kable(head(subcount, 10), col.names = gsub("", "", names(subcount)))
+
+```
+It is interesting that edm is the lowest of the genres but progressive electro house is the highest of the subgenres. Which indicates most of edm's subgenres fall under progressive electro house.
+
+<br></br>
+
+Personally, I like live music even listening to it on recording. I want to see what percentage of is above 0.8 (In the music attributes it is stated anything greater than 0.8 is normally live)
+
+```{r}
+df %>%
+  count(liveness >= 0.8) %>%
+  rename(count = n) -> livecount
+
+livecount$count[2] / length(df$liveness)
+
+```
+Only 1% of tracks have 0.8 and over for the amount of liveness. In other words only 1% of tracks are live.
+
+<br></br>
+
+Who has the highest BPM?
+
+```{r}
+df %>%
+  filter(BPM == max(BPM)) -> highbpm
+
+highbpm %>%
+  select(track_name, track_artist, BPM) -> highbpm
+
+knitr::kable(head(highbpm, 10), col.names = gsub("", "", names(highbpm)))
+
+```
+<br></br>
+
+"Dope's gotta hold on me by Spanish F.L.Y" has the highest BPM with a result of 239.44
+
+<br></br>
+
+Who has the lowest danceability?
+
+```{r}
+
+df %>%
+  filter(danceability == min(danceability)) -> lowdnce
+
+lowdnce %>%
+  select(track_name, track_artist, danceability) -> lowdnce
+
+knitr::kable(head(lowdnce, 10), col.names = gsub("", "", names(lowdnce)))
+
+
+```
+
+It is "Hi, How're You Doin" by "DREAMS COME TRUE" with 0
+
+<br></br>
+  
+Next, we can graph all the music attributes and look at them at a glimpse
+  
+  
+```{r}
+
+library(ggthemes)
+#I am also using the Data Explorer library here too but I have called it previously
+plot_histogram(
+  df[,10:20], #Only variables 10 - 20
+  geom_histogram_args = list(bins = 60L),
+  scale_x = "continuous",
+  title = 'Music Attibutes',
+  ggtheme = theme_linedraw(),
+  theme_config = list(),
+  nrow = 4L,
+  ncol = 4L,
+  parallel = T
+)
+
+```
+
+From the graphs we can say:
+
+- Acousticness is rightly skewed
+- Valence is normally distributed
+- Speechiness in songs are not as popular, people prefer less words
+- High energy songs are popular
+- Most songs have a loudness between 6-10 dBs
+
+<br></br>
+
+Next I thought it would be interesting to look at the most popular artists in terms of average popularity
+
+
+```{r, figurename5, echo=TRUE, out.width = '90%', fig.align = "center"}
+
+#Subset of artists with the amount of songs they have in the dataset
+df %>%
+  count(track_artist) -> artcount
+
+#Grouping by artist and adding up their total popularity in a new column
+df %>%
+  group_by(track_artist) %>%
+  summarise(Total_Popularity = sum(track_popularity)) -> pop
+
+# Adding the number of tracks we original got to our new subset
+pop %>%
+  mutate(No_of_tracks = artcount$n) -> pop
+
+# a new column averaging the popularity dividing total popularity by amount of songs
+pop %>%
+  mutate(average_popularity = Total_Popularity / No_of_tracks) -> popavg
+
+
+
+library(wesanderson) #Color pallette package
+col2 = c(wes_palette('Zissou1', 10, type = "continuous")) #Setting up a gradual color pallette
+
+popavg %>% 
+  top_n(10, average_popularity) %>% #Top 10 in average popularity 
+  ggplot(aes(x = reorder(track_artist,+ average_popularity), y = average_popularity)) + #setting up axes
+  geom_bar(stat = 'identity', fill = col2) + #Using color pallette 
+  coord_flip() + #Flipping the axes so the names of artists arent at the bottom
+  theme_bw(base_size=10) + 
+  labs(y="Popularity", x="Artists") +
+  ggtitle("Most popular artists") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(aes(label = average_popularity), hjust=-0.1, size=3) #Adjusting position
+  
+
+
+```
+
+On average the top artists are quite close with a range from 84 - 97 but Trevor Daniels takes the lead by a good bit.
+
+<br></br>
+
+I thought I would look at major and minor modes. In music people say major modes sound more positive while minor modes tend to be more sad. I decided to take the modes and plot them against valence which is how positive a song is and energy.
+
+
+```{r}
+plot(x = df$energy, y = df$valence,
+     pch = 19,
+     col = df$mode,
+     xlab = 'Energy',
+     ylab = 'Valence',
+     main = 'Energy and Valence in their Mode')
+legend("topleft",
+       legend = c('Major', 'Minor'),
+       pch = 19,
+       col = c('black', 'red'))
+```
+
+
+Generally it is quite evenly spread I would argue that major does not mean happy and minor does not mean sad. On the left there are some outliers, they are mostly minor with a high valence but just a low energy. This does not necessarily mean the modes determine the positivity of the songs.
+
+<br></br>
+
+I wanted to look at the track popularity with each year between 2010 - 2020, for this I did a boxplot
+
+
+```{r}
+
+#Picking out release dates with years between 2010 - 2020
+OOs <- df %>%
+  filter(track_album_release_date %in% c("2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020")) 
+  
+
+#Boxplot 
+OOs %>%
+  ggplot(aes(x = track_album_release_date, y = track_popularity, fill = track_album_release_date)) +
+  geom_boxplot() +
+  labs(y="Popularity", x="Release Year") +
+  ggtitle("Boxplot of popularity by release year") 
+
+```
+
+It is close between 2019 and 2012 but judging from the graph 2019 seems to be the most popular year with one of the smallest variances. 
+
+<br></br>
+
+In the Rap/Hip-Hop world there are people that dominate. Two of my all time favorites are Kendrick Lamar and Post Malone. Kendrick is considered to be a lyrical genius constantly creating music and winning many awards. Post Malone is similar. Post Malone gets grouped into the Rap/Hip Hop genre all the time however there is a big debate whether he belongs there or not. I thought it would be interesting to compare acousticness, speechiness and BPM between the 'King of Compton' and Post Malone.
+
+
+```{r}
+
+#Gathering data with the artist being Kendrick
+df %>%
+  filter(track_artist == 'Kendrick Lamar') -> kendrick
+
+#Gathering data with the artist being Post Malone
+df %>%
+  filter(track_artist == 'Post Malone') -> posty
+
+```
+
+Now we have each artist's data lets look at their graphs
+
+```{r, include = FALSE}
+
+library(cowplot) #package allows me to use plot_grid
+
+```
+
+```{r}
+
+#Plotting speechiness against acousticness for Kendrick
+kendrick %>%
+  ggplot(aes(x = speechiness, y = acousticness)) +
+  geom_point(aes(color = 'red')) +
+  scale_color_manual(name = "Kendrick", values = 'red') -> kenplot
+
+
+#Plotting speechiness against acousticness for Post
+posty %>%
+  ggplot(aes(x = speechiness, y = acousticness)) +
+  geom_point(aes(color = "yellow")) +
+  scale_color_manual(name = "Post Malone", values = 'yellow') -> postplot
+
+
+
+
+#Displaying the 2 plots against each other
+plot_grid(kenplot, postplot, ncol=2,   align = "v", axis = "lr")
+
+
+
+```
+
+
+So from the graphs, we can see Kendrick is more lyrical and Post Malone is more accoustic. Lyrical songs are a characteristic of rap and although rappers can use accoustics in their tracks however it is not as common as rock or pop.
+
+We are only comparing Post Malone to one rapper. Let us look at some more rappers with these characteristics. We will look at Kanye West and Travis Scott, two massive names in rap
+
+```{r}
+
+#Gathering data with the artist being Drake
+df %>%
+  filter(track_artist == 'Travis Scott') -> travis
+
+
+travis %>%
+  ggplot(aes(x = speechiness, y = acousticness)) +
+  geom_point(aes(color = 'orange')) +
+  scale_color_manual(name = "Travis Scott", values = 'orange') -> traplot
+
+
+#Gathering data with the artist being Kanye
+df %>%
+  filter(track_artist == 'Kanye West') -> kanye
+
+kanye %>%
+  ggplot(aes(x = speechiness, y = acousticness)) +
+  geom_point(aes(color = 'purple')) +
+  scale_color_manual(name = "Kanye West", values = 'purple') -> kanyeplot
+
+
+plot_grid(traplot, kanyeplot,
+          ncol=2,   align = "v", axis = "lr")
+
+```
+
+
+As you can see these are similar to Kendrick. There is a common trend here one that Post Malone does not follow. 
+
+I think it is fair to say based on these graphs Post Malone on paper at least shouldn't be considered a rapper. I think he is more in another genre. I think his accousticness is too much for the rap genre. On a personal note I do agree, I feel Post Malone is very melodic compared to rappers in industry today. 
+
+<br></br>
+
+This concludes my analysis of the Spotify dataset. I picked this as I love music and wanted to look at some statistics beyond just popularity or who has the most songs. I think we answered our questions at the beginning plus a few extra in between. 
+
+___
+
+### R Packages 
+
+For the R Packages section of the project I thought it would be interesting to look into packages that enable R to access a database and retrieve data.
+
+In this section I will look at 2 packages `DBI` and `sqldf`
+
+#### DBI: 
+
+In the world today there is so much data and Excel and CSV is not a sufficient way to store massive amounts of data anymore so data is stored in databases. Data analysts retrieve this data from databases to begin their analysis. In order to do this in R we use the `DBI` package.
+
+The `DBI` package is a database interface definition for communication between R and relational database management systems
+
+
+```{r}
+library(DBI) #Calling DBI
+
+```
+
+I will connect my SQL database. My database is called "netflix" and I have a table called "movies" within that database. Within that table I imported a dataset called [netflix_dataset.csv](https://app.datacamp.com/workspace/w/3ae668c3-7d26-4c7b-852e-60f39a69a2d7/edit?file=notebook.ipynb) which I imported in my database prior. 
+
+Below is a screenshot of my database in the SQL Workbench environment
+
+```{r figurename1, echo=FALSE, out.width = '70%', fig.align = "center"}
+knitr::include_graphics("DB.png") # Putting the picture of my database from SQL workbench
+```
+
+In order to do anything R and the SQL database need to communicate in some way in order for me to interact with the database through R. Below is how we do it
+
+```{r}
+# Connecting to the MySQL database: 
+con <- dbConnect(RMySQL::MySQL(), #con will be the variable name I will use to access my db
+                 dbname = "netflix",  
+                 host = "localhost",  
+                 port = 3306,
+                 user = "root",
+                 password = "Pa88word@1")
+
+```
+
+I found these details in SQL Workbench here:
+  
+```{r figurename2, echo=FALSE, out.width = '70%', fig.align = "center"}
+knitr::include_graphics("DBdetails.png") # Putting in the picture of the database details
+```
+
+Now my database is connected to R I can use these packages to interact with my database and start writing queries.
+
+<br></br>
+
+First I will call all the tables in my database in this case we only have 1 which is "movies"
+```{r}
+# Getting a list of tables from the database using object 'con' 
+dbListTables(con)
+
+```
+
+Next, I will read the first 3 rows of data from the table "movies"
+
+```{r}
+#Reading table query associating database, table
+head(dbReadTable(con, "movies"), 3)  #Only reading the first 3 rows
+```
+
+We will write our first query. In this query we will select the amount of rows from "movies"
+
+```{r}
+#Writing a SQL query to the database
+dbGetQuery(con,'SELECT COUNT(*) FROM movies;') #This query counts every row from movies
+```
+
+A very useful feature is after running a query you can then save this query into a variable take for example:
+  
+```{r}
+#saving the query into an object
+tsmovies <- dbGetQuery(con,'SELECT * FROM movies WHERE director = "Toshiya Shinohara";')
+```
+
+I have ran a query to select all movies where the director is Toshiya Shinohara and saved it in a object called `tsmovies`. I can now use this object as we normally would in R.
+
+```{r}
+str(tsmovies) #Looking at the structure of tsmovies
+```
+
+Now looking at the data
+
+```{r}
+tsmovies
+
+```
+
+`tsmovies` is a data frame in R we can manipulate as normal. For example I will change the variable `show_id` to `ID`
+
+```{r, results = "hide"}
+tsmovies %>%
+  rename("ID" = "show_id") #Proving we can manipulate the table
+
+```
+
+```{r}
+colnames(tsmovies)
+```
+
+
+We can also query using `dplyr`
+
+```{r}
+#using dplyr which is already installed from the beginning
+movies1 <- tbl(con, "movies")
+head(movies1)
+```
+
+```{r}
+summary <- movies1 %>% #saving movies1 into summary object
+  group_by(type) %>% #grouping by type (movie or tv show)
+  arrange(desc(release_year)) #sorting in descending order by release year
+```
+
+
+Finally we `collect` the query
+```{r}
+summary %>% collect() #displaying the results
+```
+
+You are also able to translate the R query back into SQL queries. This isn't carrying out any tasks, it is just to display the SQL query.
+
+```{r}
+summary %>% show_query() #showing the query in SQL
+```
+
+<br></br>
+
+#### sqldf: 
+
+Another extremely useful package we can use is `sqldf`. This allows you to make SQL queries to a dataset imported in R. 
+
+```{r, results = "hide"}
+library(sqldf)
+```
+
+For example if we take the spotify dataset from the first chapter of this project. Let us say we want to write a query to find the average `track_popularity`
+
+```{r}
+options(sqldf.driver = "SQLite") #This tells sqldf which DB driver to use
+
+#Picking the average track popularity
+sqldf("SELECT AVG(track_popularity) FROM df")
+
+```
+
+```{r}
+#picking out the amount tracks that were releaed in 2010
+sqldf("SELECT COUNT(track_album_release_date) FROM df WHERE track_album_release_date = 2020")
+
+
+
+```
+
+
+The average `track_popularity` is 42.47708 and we did this strictly using SQL and from a dataset already in R not extracted from a database.
+
+This is how versataile R is and how smoothly it works with SQL which is a big advantage.
+
+<br></br>
+
+This concludes my R - Packages section and i will now move on to Functions/Programming.
+
+___
+
+
+### Functions/Programming
+
+For this section I will continue using the spotify dataset from the analysis section
+
+
+```{r}
+#setting the class of my dataset to 'music'
+class(df) <- 'music' 
+
+```
+
+
+#### Summary
+
+For the summary function I decided to write a function that would give me back the mean of all the musical attributes
+
+```{r}
+#Using the class music and assigning it to a function
+summary.music <- function(dataset){ newdf <- data.frame(
+#New data frame where its extracting each musical attribute from the dataset thats been
+#inserted into the function
+    danceability = dataset$danceability,
+    energy = dataset$energy,
+    loudness = dataset$loudness,
+    speechiness = dataset$speechiness,
+    acousticness = dataset$acousticness,
+    instrumentalness = dataset$instrumentalness,
+    liveness = dataset$liveness,
+    valence = dataset$valence,
+    bpm = dataset$BPM)
+#Printing out the results getting the mean of each attribute and appending it to
+#some string to make it presentable
+  cat('Mean Danceability =', mean(newdf$danceability), '\n')
+  cat('Mean Energy =', mean(newdf$energy), '\n')
+  cat('Mean Loudness =', mean(newdf$loudness), '\n')
+  cat('Mean Speechiness =', mean(newdf$speechiness), '\n')
+  cat('Mean Acousticness =', mean(newdf$acousticness), '\n')
+  cat('Mean Instrumentalness =',mean(newdf$instrumentalness), '\n')
+  cat('Mean Liveness =', mean(newdf$liveness), '\n')
+  cat('Mean Valence =', mean(newdf$valence), '\n')
+  cat('Mean BPM =', mean(newdf$bpm), '\n')
+}
+
+#Calling the function
+summary(df)
+
+
+```
+
+<br></br>
+
+#### Plot 
+
+For the plot function I have decided to plot loudness for any dataset that has the class 'music' and the variable loudness
+
+
+```{r}
+
+plot.music <- function(dataset){
+  new <- data.frame(
+    loudness = df$loudness
+    )
+  ggplot(new, aes(loudness), binwidth = 20) +
+    geom_histogram(col = 'darkblue',fill = 'lightblue')
+}
+
+plot(df)
+
+```
+
+<br></br>
+
+
+#### Print
+
+Finally for the print function I have written a function that prints how many ongs are in each genre with a dataset of class 'music' and the variable `playlist_genre` with the same genres.
+
+```{r}
+
+print.music <- function(dataset)
+  { newdf2 <- data.frame(playlist_genre = dataset$playlist_genre)
+  cat('Pop =', sum(newdf2$playlist_genre == 'pop', na.rm = TRUE), '\n')
+  cat('R&B =', sum(newdf2$playlist_genre == 'r&b', na.rm = TRUE), '\n')
+  cat('Rock =', sum(newdf2$playlist_genre == 'rock', na.rm = TRUE), '\n')
+  cat('Latin =', sum(newdf2$playlist_genre == 'latin', na.rm = TRUE),'\n')
+  cat('Rap =', sum(newdf2$playlist_genre == 'rap', na.rm = TRUE),'\n')
+  cat('EDM =', sum(newdf2$playlist_genre == 'edm', na.rm = TRUE), '\n')
+}
+print(df)
+
+```
+
+This concludes the final section of this project. 
+
+
+### Citations
+
+#### Analysis
+
+```{r}
+citation('tidyverse')
+citation('ggplot2')
+citation('lubridate') 
+citation('visdat')
+citation('anytime')
+citation('DataExplorer')
+citation('ggthemes')
+citation('wesanderson')
+citation('cowplot')
+```
+
+
+#### R - Packages
+
+```{r}
+citation("DBI")
+citation("sqldf")
+
+```
+
+
